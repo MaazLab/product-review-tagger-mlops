@@ -1,55 +1,68 @@
 import torch
 import numpy as np
 import pickle
-from transformers import BertTokenizer
-from train import BERTMultiLabelClassifier  # Import from your training script
+from transformers import AutoTokenizer, AutoModel
+import torch.nn as nn
 
-# Load resources
-MODEL_PATH = 'models/bert_multilabel.pth'
-TOKENIZER_PATH = 'models/bert_tokenizer'
-BINARIZER_PATH = 'models/label_binarizer.pkl'
-MODEL_NAME = 'bert-base-uncased'
+# ----- Configuration -----
+MODEL_NAME = "nreimers/MiniLM-L6-H384-uncased"
+MODEL_PATH = "models/minilm_multilabel.pth"
+BINARIZER_PATH = "models/label_binarizer.pkl"
 MAX_LEN = 256
-# DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DEVICE = torch.device('cpu')  # For demonstration purposes, using CPU
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load tokenizer and label binarizer
-tokenizer = BertTokenizer.from_pretrained(TOKENIZER_PATH)
-with open(BINARIZER_PATH, 'rb') as f:
+# ----- Model Definition -----
+class MiniLMMultiLabelClassifier(nn.Module):
+    def __init__(self, model_name, num_labels):
+        super(MiniLMMultiLabelClassifier, self).__init__()
+        self.bert = AutoModel.from_pretrained(model_name)
+        self.dropout = nn.Dropout(0.3)
+        self.classifier = nn.Linear(self.bert.config.hidden_size, num_labels)
+
+    def forward(self, input_ids, attention_mask):
+        output = self.bert(input_ids=input_ids, attention_mask=attention_mask)
+        pooled_output = output.pooler_output if hasattr(output, "pooler_output") else output.last_hidden_state[:, 0]
+        output = self.dropout(pooled_output)
+        return torch.sigmoid(self.classifier(output))
+
+# ----- Load Label Binarizer -----
+with open(BINARIZER_PATH, "rb") as f:
     mlb = pickle.load(f)
 
-# Load model
-model = BERTMultiLabelClassifier(MODEL_NAME, len(mlb.classes_))
+# ----- Load Tokenizer -----
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+
+# ----- Load Model -----
+model = MiniLMMultiLabelClassifier(MODEL_NAME, len(mlb.classes_))
 model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
 model.to(DEVICE)
 model.eval()
 
-# Sample review for testing
+# ----- Test Input -----
 sample_text = "The packaging was damaged and the battery does not last long."
 
-# Tokenize
+# ----- Tokenization -----
 inputs = tokenizer.encode_plus(
     sample_text,
-    None,
     add_special_tokens=True,
     max_length=MAX_LEN,
-    padding='max_length',
+    padding="max_length",
     truncation=True,
-    return_token_type_ids=False,
     return_attention_mask=True,
-    return_tensors='pt'
+    return_tensors="pt"
 )
 
-input_ids = inputs['input_ids'].to(DEVICE)
-attention_mask = inputs['attention_mask'].to(DEVICE)
+input_ids = inputs["input_ids"].to(DEVICE)
+attention_mask = inputs["attention_mask"].to(DEVICE)
 
-# Predict
+# ----- Inference -----
 with torch.no_grad():
-    outputs = model(input_ids, attention_mask)
-    predicted_probs = outputs.cpu().numpy()[0]
-    predicted_labels = (predicted_probs > 0.5).astype(int)
+    outputs = model(input_ids=input_ids, attention_mask=attention_mask)
+    probs = outputs.cpu().numpy()[0]
+    preds = (probs > 0.5).astype(int)
 
-# Decode
-tags = mlb.inverse_transform([predicted_labels])[0]
+# ----- Decode Labels -----
+predicted_tags = mlb.inverse_transform(np.array([preds]))[0]
+# ----- Output -----
 print(f"\nInput: {sample_text}")
-print(f"Predicted Tags: {tags}")
+print("Predicted Tags:", predicted_tags)
