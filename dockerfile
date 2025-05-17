@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
 
 # Copy dependency list and install
 COPY requirements.txt .
-COPY main.py .
+COPY app.py .
 COPY app/ app/
 COPY model/ model/
 
