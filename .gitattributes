@@ -4,3 +4,4 @@ models/ filter=lfs diff=lfs merge=lfs -text
 models/bert_tokenizer filter=lfs diff=lfs merge=lfs -text
 models/label_binarizer.pkl filter=lfs diff=lfs merge=lfs -text
 models/bert_multilabel.pth filter=lfs diff=lfs merge=lfs -text
+models/minilm_multilabel.pth filter=lfs diff=lfs merge=lfs -text
