@@ -1,0 +1,8 @@
+*.zip
+*.npy
+*.tar
+*.tar.gz
+*.ipynb
+*__pycache__*
+*.pyc
+*.pyodata/*.csv
