@@ -46,4 +46,4 @@ jobs:
           docker pull maaz1010/product-review-tagger:latest
           docker stop product-review-tagger || true
           docker rm product-review-tagger || true
-          docker run -d --name product-review-tagger -p 80:8000 maaz1010/product-review-tagger:latest
+          docker run -d --name product-review-tagger -p 8000:8000 maaz1010/product-review-tagger:latest
